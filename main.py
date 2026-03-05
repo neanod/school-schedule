@@ -18,10 +18,7 @@ def generate_event_id(summary, start_time_str):
     Создает уникальный ID для события. 
     Google ID должен быть в base32 (строчные латинские буквы и цифры от 0 до 5).
     """
-    # Создаем строку, которая уникально описывает урок (время + пометка школы)
-    # Мы не берем summary, чтобы при замене предмета в то же время ID остался тем же
     unique_str = f"{start_time_str}_agl"
-    # Хешируем и берем первые 20 символов (hex подходит под требования Google ID)
     event_id = hashlib.md5(unique_str.encode()).hexdigest()
     return event_id
 
@@ -62,21 +59,8 @@ def main():
             start_time = event['start'].get('dateTime')
             location = event.get('location', '')
 
-            # Работаем только с уроками в АГЛ
             if "АГЛ" in location and start_time:
-                # Генерируем уникальный ID для этого таймслота
                 event['id'] = generate_event_id(summary, start_time)
-                
-                # try:
-                #     # Используем insert. Если ID уже есть, Google выдаст ошибку 409
-                #     service.events().insert(calendarId='primary', body=event).execute()
-                #     print(f"[+] Added: '{summary}'")
-                # except HttpError as e:
-                #     if e.resp.status == 409:
-                #         # 409 Conflict означает, что событие с таким ID уже существует
-                #         print(f"[-] Skip: '{summary}' (слот в АГЛ уже занят)")
-                #     else:
-                #         print(f"[!] Error: {e}")
                 try:
                     service.events().insert(calendarId='primary', body=event).execute()
                     print(f"[+] Added: '{summary}'")
@@ -94,7 +78,6 @@ def main():
                     else:
                         print(f"[!] Error: {e}")
             else:
-                # Если это не АГЛ, просто добавляем (или проигнорируй)
                 try:
                     service.events().insert(calendarId='primary', body=event).execute()
                 except HttpError as e:

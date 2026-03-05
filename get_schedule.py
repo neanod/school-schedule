@@ -49,7 +49,6 @@ def generate_all_schedules_json():
         base_name = os.path.splitext(image_filename)[0]
         json_filename = f"{base_name}.json"
         
-        # Если такой JSON уже лежит в папке, пропускаем
         if os.path.exists(f"{json_filename}"):
             print(f"😎 file {json_filename} already exists.")
             continue
@@ -81,7 +80,6 @@ def generate_all_schedules_json():
                 if chunk.text is not None:
                     response_text += chunk.text
                 
-            # Сохраняем результат
             with open(f"{json_filename}", "w", encoding="utf-8") as f:
                 f.write(response_text)
                 
