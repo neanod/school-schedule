@@ -67,14 +67,30 @@ def main():
                 # Генерируем уникальный ID для этого таймслота
                 event['id'] = generate_event_id(summary, start_time)
                 
+                # try:
+                #     # Используем insert. Если ID уже есть, Google выдаст ошибку 409
+                #     service.events().insert(calendarId='primary', body=event).execute()
+                #     print(f"[+] Added: '{summary}'")
+                # except HttpError as e:
+                #     if e.resp.status == 409:
+                #         # 409 Conflict означает, что событие с таким ID уже существует
+                #         print(f"[-] Skip: '{summary}' (слот в АГЛ уже занят)")
+                #     else:
+                #         print(f"[!] Error: {e}")
                 try:
-                    # Используем insert. Если ID уже есть, Google выдаст ошибку 409
                     service.events().insert(calendarId='primary', body=event).execute()
                     print(f"[+] Added: '{summary}'")
                 except HttpError as e:
                     if e.resp.status == 409:
-                        # 409 Conflict означает, что событие с таким ID уже существует
-                        print(f"[-] Skip: '{summary}' (слот в АГЛ уже занят)")
+                        try:
+                            service.events().update(
+                                calendarId='primary', 
+                                eventId=event['id'], 
+                                body=event
+                            ).execute()
+                            print(f"[*] Updated/Restored: '{summary}'")
+                        except HttpError as update_error:
+                            print(f"[!] Update failed: {update_error}")
                     else:
                         print(f"[!] Error: {e}")
             else:

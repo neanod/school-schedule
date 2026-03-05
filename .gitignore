@@ -2,3 +2,4 @@
 *.png
 *.json
 __pycache__
+launch.sh
