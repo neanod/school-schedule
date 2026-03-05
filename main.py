@@ -1,5 +1,6 @@
 import datetime
 import os.path
+import hashlib
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -10,14 +11,24 @@ from googleapiclient.errors import HttpError
 from get_schedule import generate_all_schedules_json
 from get_data_for_calendar import get_data_for_calendar
 
-SCOPES =['https://www.googleapis.com/auth/calendar']
+SCOPES = ['https://www.googleapis.com/auth/calendar']
+
+def generate_event_id(summary, start_time_str):
+    """
+    Создает уникальный ID для события. 
+    Google ID должен быть в base32 (строчные латинские буквы и цифры от 0 до 5).
+    """
+    # Создаем строку, которая уникально описывает урок (время + пометка школы)
+    # Мы не берем summary, чтобы при замене предмета в то же время ID остался тем же
+    unique_str = f"{start_time_str}_agl"
+    # Хешируем и берем первые 20 символов (hex подходит под требования Google ID)
+    event_id = hashlib.md5(unique_str.encode()).hexdigest()
+    return event_id
 
 def authenticate_google_calendar():
-    """auntification stuff"""
     creds = None
     if os.path.exists('token.json'):
         creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-    
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
@@ -28,63 +39,52 @@ def authenticate_google_calendar():
             creds = flow.run_local_server(port=0)
         with open('token.json', 'w') as token:
             token.write(creds.to_json())
-
     return build('calendar', 'v3', credentials=creds)
-
-def get_existing_events(service, day_date):
-    start_of_day = day_date.replace(hour=0, minute=0, second=0, microsecond=0).isoformat() + 'Z'
-    end_of_day = day_date.replace(hour=23, minute=59, second=59, microsecond=0).isoformat() + 'Z'
-
-    try:
-        events_result = service.events().list(
-            calendarId='primary',
-            timeMin=start_of_day,
-            timeMax=end_of_day,
-            singleEvents=True,
-            orderBy='startTime'
-        ).execute()
-        return events_result.get('items',[])
-    except HttpError as error:
-        print(f'Error getting events: {error}')
-        return[]
 
 def main():
     generate_all_schedules_json()
     print("\n=== STAGE 3: Adding the events to Google Calendar ===")
     service = authenticate_google_calendar()
     today = datetime.datetime.now()
+    
     for i in range(11):
         target_day = today + datetime.timedelta(days=i)
         day_str = target_day.strftime("%d.%m.%Y")
         new_events = get_data_for_calendar(cl="11т", day=target_day)
+        
         if not new_events:
             continue
-        print(f"\n--- {day_str} schedule processing ---")
-        existing_events = get_existing_events(service, target_day)
-        existing_keys =[]
-        for ev in existing_events:
-            summary = ev.get('summary', '')
-            start_time = ev.get('start', {}).get('dateTime', '')
-            existing_keys.append(f"{summary}_{start_time}")
-        for event in new_events:
-            event_summary = event.get('summary')
-            event_start_time = event['start']['dateTime']
             
-            is_duplicate = False
-            for ex_key in existing_keys:
-                if event_summary in ex_key and event_start_time in ex_key:
-                    is_duplicate = True
-                    break
-            if is_duplicate:
-                print(f"[-] Skip: '{event_summary}' в {event_start_time} (уже есть)")
-            else:
+        print(f"\n--- {day_str} schedule processing ---")
+
+        for event in new_events:
+            summary = event.get('summary', 'Урок')
+            start_time = event['start'].get('dateTime')
+            location = event.get('location', '')
+
+            # Работаем только с уроками в АГЛ
+            if "АГЛ" in location and start_time:
+                # Генерируем уникальный ID для этого таймслота
+                event['id'] = generate_event_id(summary, start_time)
+                
                 try:
-                    created_event = service.events().insert(calendarId='primary', body=event).execute()
-                    print(f"[+] Added: '{event_summary}'")
-                except HttpError as error:
-                    print(f"[!] Error adding '{event_summary}': {error}")
-                    
-    print("\n✅ Syncronized successfully")
+                    # Используем insert. Если ID уже есть, Google выдаст ошибку 409
+                    service.events().insert(calendarId='primary', body=event).execute()
+                    print(f"[+] Added: '{summary}'")
+                except HttpError as e:
+                    if e.resp.status == 409:
+                        # 409 Conflict означает, что событие с таким ID уже существует
+                        print(f"[-] Skip: '{summary}' (слот в АГЛ уже занят)")
+                    else:
+                        print(f"[!] Error: {e}")
+            else:
+                # Если это не АГЛ, просто добавляем (или проигнорируй)
+                try:
+                    service.events().insert(calendarId='primary', body=event).execute()
+                except HttpError as e:
+                    print(f"[!] Error adding non-AGL event: {e}")
+
+    print("\n✅ Synchronized successfully")
 
 if __name__ == '__main__':
     main()

@@ -16,7 +16,7 @@ def get_gemini_token():
 def generate_all_schedules_json():
     print("\n=== STAGE 1: Checkup and downloading the photos ===")
     get_schedules_for_next_days(days_ahead=10)
-    png_files = glob.glob("*.png")
+    png_files = glob.glob("cached/*.png")
     if not png_files:
         print("no schedule photos")
         return
@@ -50,12 +50,13 @@ def generate_all_schedules_json():
         json_filename = f"{base_name}.json"
         
         # Если такой JSON уже лежит в папке, пропускаем
-        if os.path.exists(json_filename):
+        if os.path.exists(f"{json_filename}"):
             print(f"😎 file {json_filename} already exists.")
+            continue
 
         print(f"\n[Using Gemini] processing the file: {image_filename}")
         
-        with open(image_filename, "rb") as f:
+        with open(f"{image_filename}", "rb") as f:
             image_data = f.read()
 
         contents =[
@@ -81,7 +82,7 @@ def generate_all_schedules_json():
                     response_text += chunk.text
                 
             # Сохраняем результат
-            with open(json_filename, "w", encoding="utf-8") as f:
+            with open(f"{json_filename}", "w", encoding="utf-8") as f:
                 f.write(response_text)
                 
             print(f"✅ saved {json_filename}")

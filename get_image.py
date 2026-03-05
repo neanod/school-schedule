@@ -77,7 +77,7 @@ def download_photo(url, filename):
     try:
         r = requests.get(url, stream=True)
         r.raise_for_status()
-        with open(filename, 'wb') as f:
+        with open(f"cached/{filename}", 'wb') as f:
             for chunk in r.iter_content(8192):
                 f.write(chunk)
     except Exception as e:

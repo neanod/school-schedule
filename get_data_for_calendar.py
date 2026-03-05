@@ -16,10 +16,10 @@ def get_data_for_calendar(cl="11т", day=None):
     current_date_formated: str = day.strftime("%Y-%m-%d")
     needed_name = f"{current_date}.json"
     
-    if not Path(needed_name).exists():
+    if not Path(f"cached/{needed_name}").exists():
         return[]
         
-    with open(needed_name, "r", encoding="utf8") as f:
+    with open(f"cached/{needed_name}", "r", encoding="utf8") as f:
         schedule_raw = f.read()
         
     
@@ -52,7 +52,7 @@ def get_data_for_calendar(cl="11т", day=None):
             
         ev = {
             "summary": str(lesson.get("subject")),
-            "location": "school",
+            "location": "АГЛ",
             "description": f"Classroom {lesson.get('classroom')}",
             "start": {
                 "dateTime": f"{current_date_formated}T{times[lesson_num][0]}:00",
