@@ -59,7 +59,8 @@ def main():
             start_time = event['start'].get('dateTime')
             location = event.get('location', '')
 
-            if "АГЛ" in location and start_time:
+            if "room" in location and start_time:
+                print("found an old one")
                 event['id'] = generate_event_id(summary, start_time)
                 try:
                     service.events().insert(calendarId='primary', body=event).execute()
