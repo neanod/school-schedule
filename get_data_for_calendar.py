@@ -52,8 +52,8 @@ def get_data_for_calendar(cl="11т", day=None):
             
         ev = {
             "summary": str(lesson.get("subject")),
-            "location": "АГЛ",
-            "description": f"Classroom {lesson.get('classroom')}",
+            "location": f"Classroom {lesson.get('classroom')}",
+            "description": f"",
             "start": {
                 "dateTime": f"{current_date_formated}T{times[lesson_num][0]}:00",
                 "timeZone": "Europe/Moscow",
